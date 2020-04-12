@@ -4,18 +4,18 @@
 {% endblock %}
 {% block body %}
 <div class="discover">
-    <h2>{{_('Tasks list')}}</h2>
-    <table class="table table-no-bordered" id="table" data-url="{{  url_for('get_email_status_json') }}"  data-sort-name="starttime" data-sort-order="asc">
+    <h2>{{_('Tasks')}}</h2>
+    <table class="table table-no-bordered" id="table" data-url="{{  url_for('web.get_email_status_json') }}"  data-sort-name="starttime" data-sort-order="asc">
       <thead>
         <tr>
             {% if g.user.role_admin() %}
             <th data-halign="right" data-align="right" data-field="user" data-sortable="true">{{_('User')}}</th>
             {% endif %}
-            <th data-halign="right" data-align="right" data-field="type" data-sortable="true">{{_('Task')}}</th>
+            <th data-halign="right" data-align="right" data-field="taskMessage" data-sortable="true">{{_('Task')}}</th>
             <th data-halign="right" data-align="right" data-field="status" data-sortable="true">{{_('Status')}}</th>
             <th data-halign="right" data-align="right" data-field="progress" data-sortable="true" data-sorter="elementSorter">{{_('Progress')}}</th>
-            <th data-halign="right" data-align="right" data-field="runtime" data-sortable="true" data-sort-name="rt">{{_('Runtime')}}</th>
-            <th data-halign="right" data-align="right" data-field="starttime" data-sortable="true" data-sort-name="id">{{_('Starttime')}}</th>
+            <th data-halign="right" data-align="right" data-field="runtime" data-sortable="true" data-sort-name="rt">{{_('Run Time')}}</th>
+            <th data-halign="right" data-align="right" data-field="starttime" data-sortable="true" data-sort-name="id">{{_('Start Time')}}</th>
             <th data-field="id" data-visible="false"></th>
             <th data-field="rt" data-visible="false"></th>
         </tr>
@@ -38,7 +38,7 @@
             setInterval(function() {
                 $.ajax({
                     method:"get",
-                    url: "{{ url_for('get_email_status_json')}}",
+                    url: "{{ url_for('web.get_email_status_json')}}",
                     async: true,
                     timeout: 900,
                     success:function(data){

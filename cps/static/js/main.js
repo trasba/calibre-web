@@ -1,3 +1,20 @@
+/* This file is part of the Calibre-Web (https://github.com/janeczku/calibre-web)
+ *    Copyright (C) 2012-2019  mutschler, janeczku, jkrehm, OzzieIsaacs
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 // Generic control/related handler to show/hide fields based on a checkbox' value
 // e.g.
 //  <input type="checkbox" data-control="stuff-to-show">
@@ -11,6 +28,24 @@ $(document).on("change", "input[type=\"checkbox\"][data-control]", function () {
         $(this).toggle(showOrHide);
     });
 });
+
+
+// Generic control/related handler to show/hide fields based on a select' value
+$(document).on("change", "select[data-control]", function() {
+    var $this = $(this);
+    var name = $this.data("control");
+    var showOrHide = parseInt($this.val());
+    // var showOrHideLast = $("#" + name + " option:last").val()
+    for (var i = 0; i < $(this)[0].length; i++) {
+        var element = parseInt($(this)[0][i].value);
+        if (element === showOrHide) {
+            $("[data-related=" + name + "-" + element + "]").show();
+        } else {
+            $("[data-related=" + name + "-" + element + "]").hide();
+        }
+    }
+});
+
 
 $(function() {
     var updateTimerID;
@@ -26,6 +61,20 @@ $(function() {
         $("#RestartDialog").modal("hide");
     }
 
+    function cleanUp() {
+        clearInterval(updateTimerID);
+        $("#spinner2").hide();
+        $("#updateFinished").removeClass("hidden");
+        $("#check_for_update").removeClass("hidden");
+        $("#perform_update").addClass("hidden");
+        $("#message").alert("close");
+        $("#update_table > tbody > tr").each(function () {
+            if ($(this).attr("id") !== "current_version") {
+                $(this).closest("tr").remove();
+            }
+        });
+    }
+
     function updateTimer() {
         $.ajax({
             dataType: "json",
@@ -34,21 +83,12 @@ $(function() {
                 // console.log(data.status);
                 $("#Updatecontent").html(updateText[data.status]);
                 if (data.status > 6) {
-                    clearInterval(updateTimerID);
-                    $("#spinner2").hide();
-                    $("#updateFinished").removeClass("hidden");
-                    $("#check_for_update").removeClass("hidden");
-                    $("#perform_update").addClass("hidden");
+                    cleanUp();
                 }
             },
             error: function error() {
-                // console.log('Done');
-                clearInterval(updateTimerID);
-                $("#spinner2").hide();
                 $("#Updatecontent").html(updateText[7]);
-                $("#updateFinished").removeClass("hidden");
-                $("#check_for_update").removeClass("hidden");
-                $("#perform_update").addClass("hidden");
+                cleanUp();
             },
             timeout: 2000
         });
@@ -60,25 +100,27 @@ $(function() {
         layoutMode : "fitRows"
     });
 
-    $(".load-more .row").infinitescroll({
+    $(".grid").isotope({
+        // options
+        itemSelector : ".grid-item",
+        layoutMode : "fitColumns"
+    });
+
+
+    var $loadMore = $(".load-more .row").infiniteScroll({
         debug: false,
-        navSelector  : ".pagination",
         // selector for the paged navigation (it will be hidden)
-        nextSelector : ".pagination a:last",
+        path : ".next",
         // selector for the NEXT link (to page 2)
-        itemSelector : ".load-more .book",
-        animate      : true,
-        extraScrollPx: 300
-        // selector for all items you'll retrieve
-    }, function(data) {
+        append : ".load-more .book"
+        //animate      : true, # ToDo: Reenable function
+        //extraScrollPx: 300
+    });
+    $loadMore.on( "append.infiniteScroll", function( event, response, path, data ) {
+        $(".pagination").addClass("hidden");
         $(".load-more .row").isotope( "appended", $(data), null );
     });
 
-    $("#sendbtn").click(function() {
-        var $this = $(this);
-        $this.text("Please wait...");
-        $this.addClass("disabled");
-    });
     $("#restart").click(function() {
         $.ajax({
             dataType: "json",
@@ -104,15 +146,20 @@ $(function() {
         var $this = $(this);
         var buttonText = $this.html();
         $this.html("...");
-        $("#update_error").addClass("hidden")
+        $("#Updatecontent").html("");
+        $("#updateFinished").addClass("hidden");
+        $("#update_error").addClass("hidden");
+        if ($("#message").length) {
+            $("#message").alert("close");
+        }
         $.ajax({
             dataType: "json",
             url: window.location.pathname + "/../../get_update_status",
             success: function success(data) {
                 $this.html(buttonText);
 
-                var cssClass = '';
-                var message = ''
+                var cssClass = "";
+                var message = "";
 
                 if (data.success === true) {
                     if (data.update === true) {
@@ -122,19 +169,20 @@ $(function() {
                             .removeClass("hidden")
                             .find("span").html(data.commit);
 
-                        data.history.reverse().forEach((entry, index) => {
+                        data.history.forEach(function(entry) {
                             $("<tr><td>" + entry[0] + "</td><td>" + entry[1] + "</td></tr>").appendTo($("#update_table"));
                         });
-                        cssClass = 'alert-warning'
+                        cssClass = "alert-warning";
                     } else {
-                        cssClass = 'alert-success'
+                        cssClass = "alert-success";
                     }
                 } else {
-                    cssClass = 'alert-danger'
+                    cssClass = "alert-danger";
                 }
 
-                message = '<div class="alert ' + cssClass
-                    + ' fade in"><a href="#" class="close" data-dismiss="alert">&times;</a>' + data.message + '</div>';
+                message = "<div id=\"message\" class=\"alert " + cssClass
+                    + " fade in\"><a href=\"#\" class=\"close\" data-dismiss=\"alert\">&times;</a>"
+                    + data.message + "</div>";
 
                 $(message).insertAfter($("#update_table"));
             }
@@ -163,7 +211,9 @@ $(function() {
         });
     });
 
+    // Init all data control handlers to default
     $("input[data-control]").trigger("change");
+    $("select[data-control]").trigger("change");
 
     $("#bookDetailsModal")
         .on("show.bs.modal", function(e) {
@@ -185,7 +235,50 @@ $(function() {
             $(this).find(".modal-body").html("...");
         });
 
-    $(window).resize(function() {
-        $(".discover .row").isotope("reLayout");
+    $("#modal_kobo_token")
+        .on("show.bs.modal", function(e) {
+            var $modalBody = $(this).find(".modal-body");
+
+            // Prevent static assets from loading multiple times
+            var useCache = function(options) {
+                options.async = true;
+                options.cache = true;
+            };
+            preFilters.add(useCache);
+
+            $.get(e.relatedTarget.href).done(function(content) {
+                $modalBody.html(content);
+                preFilters.remove(useCache);
+            });
+        })
+        .on("hidden.bs.modal", function() {
+            $(this).find(".modal-body").html("...");
+            $("#config_delete_kobo_token").show();
+        });
+
+    $("#btndeletetoken").click(function() {
+        //get data-id attribute of the clicked element
+        var pathname = document.getElementsByTagName("script"), src = pathname[pathname.length - 1].src;
+        var path = src.substring(0, src.lastIndexOf("/"));
+        // var domainId = $(this).value("domainId");
+        $.ajax({
+            method:"get",
+            url: path + "/../../kobo_auth/deleteauthtoken/" + this.value,
+        });
+        $("#modalDeleteToken").modal("hide");
+        $("#config_delete_kobo_token").hide();
+
     });
+
+    $(window).resize(function() {
+        $(".discover .row").isotope("layout");
+    });
+
+    $(".author-expand").click(function() {
+        $(this).parent().find("a.author-name").slice($(this).data("authors-max")).toggle();
+        $(this).parent().find("span.author-hidden-divider").toggle();
+        $(this).html() === $(this).data("collapse-caption") ? $(this).html("(...)") : $(this).html($(this).data("collapse-caption"));
+        $(".discover .row").isotope("layout");
+    });
+
 });
